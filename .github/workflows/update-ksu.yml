@@ -1,0 +1,51 @@
+name: Sync KernelSU Submodule
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight
+  workflow_dispatch:   # Allows manual triggers
+
+jobs:
+  update-submodule:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Parent Repo
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Hard Reset Submodule
+        run: |
+          # Navigate to the submodule directory (adjust path if needed)
+          cd KernelSU
+          
+          # Fetch the latest from origin
+          git fetch
+          
+          # Force the submodule to match the remote main exactly
+          git reset --hard origin/main
+          
+          cd ..
+
+      - name: Commit and Force Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Add the changed submodule pointer
+          git add KernelSU
+          
+          # Check if there are actually changes
+          if git diff --cached --quiet; then
+            echo "No changes detected. Skipping."
+            exit 0
+          fi
+
+          # Amend the previous 'Update' commit or create a generic one
+          # Using --amend + --force effectively prevents "commit bloat"
+          git commit -m "chore: sync KernelSU to latest origin/main"
+          
+          # Force push to the parent repo's branch
+          git push origin --force
